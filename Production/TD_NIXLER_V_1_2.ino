@@ -81,7 +81,13 @@ void setup() {
 
   mySensor.setI2CAddress(0x76); 
   if(mySensor.beginI2C() == false) Serial.println("Bosh sensor connect failed");
-  
+
+  if (! rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    Serial.flush();
+    while (1) delay(10);
+  }
+
   Serial.println(" ");
   Serial.println("NIXLER by Tor Design NORWAY");
   Serial.println("Thank you to all the backers that supported the project on Kickstarter during the spring of 2020.");
