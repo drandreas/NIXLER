@@ -16,6 +16,8 @@
 #include <RTClib.h>
 #include <SparkFunBME280.h>
 #include <Adafruit_NeoPixel.h>
+#include <ArduinoOTA.h>
+#include <WiFiManager.h>
 
 #ifdef __AVR__
 #include <avr/power.h>
@@ -42,7 +44,8 @@ const int Btn2 = 34;
 int R = 0; 
 int G = 20; 
 int B = 25; 
-int cnt = 50;  
+int cnt = 50;
+bool updating = false;
                        
 //----------------------------- ESP32 pins to shift register --------------------------------
 const int latchPin = 32;   // pin 12 on the 74hc595   ESP - 32      ST_CP
@@ -61,8 +64,11 @@ Adafruit_NeoPixel strip(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 //--------------------- SETUP AND  INITIALIZATION ------------------------------------------------------
 void setup() { 
-  Serial.begin(9600); 
-  
+  Serial.begin(9600);
+
+  WiFiManager wifiManager;
+  wifiManager.autoConnect("Nixler");
+
   pinMode(Btn1, INPUT); 
   pinMode(Btn2, INPUT); 
   pinMode(enableHV, OUTPUT);
@@ -93,6 +99,41 @@ void setup() {
   Serial.println("Thank you to all the backers that supported the project on Kickstarter during the spring of 2020.");
   Serial.println("Head over to www.tordesign.net for more information and guides.");
   Serial.println("Software version 1.2");
+
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else { // U_SPIFFS
+      type = "filesystem";
+    }
+
+    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+    Serial.println("Start updating " + type);
+    updating = true;
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+    updating = false;
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) {
+      Serial.println("Auth Failed");
+    } else if (error == OTA_BEGIN_ERROR) {
+      Serial.println("Begin Failed");
+    } else if (error == OTA_CONNECT_ERROR) {
+      Serial.println("Connect Failed");
+    } else if (error == OTA_RECEIVE_ERROR) {
+      Serial.println("Receive Failed");
+    } else if (error == OTA_END_ERROR) {
+      Serial.println("End Failed");
+    }
+  });
+  ArduinoOTA.begin();
 }
 
 //----------------------- MAIN LOOP ---------------------------------------------------------------------------------
@@ -1127,6 +1168,8 @@ int checkButtons(){
              }  
          }
     }
-
+  do {
+    ArduinoOTA.handle();
+  } while (updating);
 }// END checkButtons
 //----------------------- END FUNCTIONS ----------------------------------------------------------------------------
